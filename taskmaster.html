@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TASKMASTER</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --text: #f0f0f0;
+    --muted: #666;
+    --urgent: #ff3b3b;
+    --soon: #ff9a3b;
+    --ok: #47ff8c;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  header {
+    max-width: 760px;
+    margin: 0 auto 48px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .subtitle {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding-bottom: 4px;
+  }
+
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+  .stats { text-align: right; font-size: 0.75rem; color: var(--muted); line-height: 1.8; }
+  .stats span { color: var(--accent); font-weight: 500; }
+
+  .drive-bar { display: flex; align-items: center; gap: 10px; font-size: 0.72rem; }
+
+  .drive-status { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+
+  .drive-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  .drive-dot.connected { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .drive-dot.syncing { background: var(--soon); animation: blink 0.8s infinite; }
+  .drive-dot.error { background: var(--urgent); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .btn-drive {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-drive:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-drive.connected-btn { border-color: rgba(71,255,140,0.3); color: var(--ok); }
+  .btn-drive.connected-btn:hover { border-color: var(--urgent); color: var(--urgent); }
+
+  .main { max-width: 760px; margin: 0 auto; }
+
+  .add-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .add-form::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--accent);
+  }
+
+  .form-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .form-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 12px; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+  input, select {
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    border-radius: 3px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+  select option { background: #1a1a1a; }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 24px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #fff; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+
+  .io-bar { display: flex; gap: 8px; margin-bottom: 20px; justify-content: flex-end; flex-wrap: wrap; }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    padding: 6px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  .import-confirm {
+    background: var(--surface);
+    border: 1px solid var(--soon);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    font-size: 0.8rem;
+    display: none;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .import-confirm.visible { display: flex; }
+  .import-confirm span { flex: 1; color: var(--soon); }
+
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    padding: 6px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { border-color: var(--accent); color: #000; background: var(--accent); }
+
+  #task-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .task-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
+    align-items: start;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    animation: slideIn 0.25s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .task-item:hover { border-color: #444; }
+  .task-item.done { opacity: 0.45; }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--muted); }
+  .task-item::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--border); transition: background 0.2s; }
+  .task-item.urgentbar::before { background: var(--urgent); }
+  .task-item.soonbar::before { background: var(--soon); }
+  .task-item.okbar::before { background: var(--ok); }
+
+  .task-check {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .task-check:hover { border-color: var(--accent); }
+  .task-check.checked { background: var(--accent); border-color: var(--accent); }
+  .task-check.checked::after { content: '✓'; font-size: 12px; color: #000; font-weight: bold; }
+
+  .task-body { min-width: 0; }
+  .task-name { font-size: 0.95rem; font-weight: 500; margin-bottom: 6px; word-break: break-word; }
+  .task-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 0.72rem; color: var(--muted); }
+
+  .tag { background: #222; border: 1px solid var(--border); padding: 2px 8px; border-radius: 2px; font-size: 0.68rem; letter-spacing: 1px; text-transform: uppercase; }
+
+  .deadline-badge { font-size: 0.72rem; padding: 2px 10px; border-radius: 2px; font-weight: 500; }
+  .deadline-badge.urgent { background: rgba(255,59,59,0.15); color: var(--urgent); border: 1px solid rgba(255,59,59,0.3); }
+  .deadline-badge.soon { background: rgba(255,154,59,0.15); color: var(--soon); border: 1px solid rgba(255,154,59,0.3); }
+  .deadline-badge.ok { background: rgba(71,255,140,0.1); color: var(--ok); border: 1px solid rgba(71,255,140,0.2); }
+  .deadline-badge.overdue { background: rgba(255,59,59,0.25); color: #ff7070; border: 1px solid rgba(255,59,59,0.4); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+  .task-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn { background: transparent; border: 1px solid transparent; color: var(--muted); width: 28px; height: 28px; border-radius: 3px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .icon-btn:hover { border-color: var(--border); color: var(--text); }
+  .icon-btn.del:hover { border-color: var(--urgent); color: var(--urgent); }
+
+  #reminders { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; max-width: 300px; }
+  .toast { background: #1a1a1a; border: 1px solid var(--accent); border-left: 4px solid var(--accent); border-radius: 4px; padding: 14px 16px; font-size: 0.78rem; animation: toastIn 0.3s ease; cursor: pointer; }
+  .toast.urgent-toast { border-color: var(--urgent); border-left-color: var(--urgent); }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  .toast-title { font-family: 'Syne', sans-serif; font-size: 0.8rem; color: var(--accent); margin-bottom: 4px; }
+  .toast.urgent-toast .toast-title { color: var(--urgent); }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 0.8rem; letter-spacing: 2px; }
+  .empty-state .big { font-family: 'Syne', sans-serif; font-size: 2rem; color: #2a2a2a; margin-bottom: 12px; }
+
+  @media (max-width: 520px) {
+    .form-row-2 { grid-template-columns: 1fr; }
+    .task-item { grid-template-columns: auto 1fr; }
+    .task-actions { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="reminders"></div>
+
+<header>
+  <div>
+    <h1>TASKMASTER</h1>
+    <div class="subtitle">deadline tracker</div>
+  </div>
+  <div class="header-right">
+    <div class="stats" id="stats"></div>
+    <div class="drive-bar">
+      <div class="drive-status">
+        <div class="drive-dot" id="drive-dot"></div>
+        <span id="drive-label">Not connected</span>
+      </div>
+      <button class="btn-drive" id="drive-btn" onclick="toggleDrive()">Connect Drive</button>
+    </div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="add-form">
+    <div class="form-title">// New Task</div>
+    <div class="form-row">
+      <input type="text" id="task-input" placeholder="What needs to get done?" maxlength="120" />
+      <button class="btn" onclick="addTask()">ADD</button>
+    </div>
+    <div class="form-row-2">
+      <input type="datetime-local" id="deadline-input" />
+      <select id="priority-input">
+        <option value="normal">Priority: Normal</option>
+        <option value="high">Priority: High</option>
+        <option value="critical">Priority: Critical</option>
+      </select>
+    </div>
+    <input type="text" id="tag-input" placeholder="Tag (e.g. work, personal, health)" maxlength="30" />
+  </div>
+
+  <div class="io-bar">
+    <button class="btn-outline" onclick="exportTasks()">⬇ EXPORT JSON</button>
+    <button class="btn-outline" onclick="document.getElementById('import-file').click()">⬆ IMPORT JSON</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)" />
+  </div>
+
+  <div class="import-confirm" id="import-confirm">
+    <span id="import-msg"></span>
+    <button class="btn-outline" style="color:var(--ok);border-color:var(--ok)" onclick="confirmImport()">MERGE</button>
+    <button class="btn-outline" style="color:var(--urgent);border-color:var(--urgent)" onclick="replaceImport()">REPLACE ALL</button>
+    <button class="btn-outline" onclick="cancelImport()">CANCEL</button>
+  </div>
+
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="setFilter('all', this)">ALL</button>
+    <button class="filter-btn" onclick="setFilter('active', this)">ACTIVE</button>
+    <button class="filter-btn" onclick="setFilter('done', this)">DONE</button>
+    <button class="filter-btn" onclick="setFilter('overdue', this)">OVERDUE</button>
+  </div>
+
+  <div id="task-list"></div>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────
+const CLIENT_ID = '423884364598-09no272bc89alr98v72uphbpnqkllq3p.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const FILENAME = 'taskmaster-tasks.json';
+
+// ── State ─────────────────────────────────────────────────
+let tasks = JSON.parse(localStorage.getItem('tasks_v1') || '[]');
+let filter = 'all';
+let notifiedIds = new Set(JSON.parse(localStorage.getItem('notified_ids') || '[]'));
+let driveConnected = false;
+let driveFileId = localStorage.getItem('drive_file_id') || null;
+let accessToken = null;
+let tokenClient = null;
+let syncTimeout = null;
+
+// ── Persistence ───────────────────────────────────────────
+function save() {
+  localStorage.setItem('tasks_v1', JSON.stringify(tasks));
+  scheduleDriveSync();
+}
+
+// ── Google Drive ──────────────────────────────────────────
+function initDrive() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { setDriveStatus('error', 'Auth failed'); return; }
+      accessToken = resp.access_token;
+      driveConnected = true;
+      localStorage.setItem('drive_connected', '1');
+      setDriveStatus('syncing', 'Loading...');
+      await loadFromDrive();
+    }
+  });
+  // Auto-reconnect silently if previously authorized
+  if (localStorage.getItem('drive_connected')) {
+    tokenClient.requestAccessToken({ prompt: '' });
+  }
+}
+
+function toggleDrive() {
+  if (driveConnected) {
+    disconnectDrive();
+  } else {
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  }
+}
+
+function disconnectDrive() {
+  driveConnected = false;
+  accessToken = null;
+  driveFileId = null;
+  localStorage.removeItem('drive_connected');
+  localStorage.removeItem('drive_file_id');
+  setDriveStatus('off', 'Not connected');
+}
+
+function setDriveStatus(state, label) {
+  const dot = document.getElementById('drive-dot');
+  const lbl = document.getElementById('drive-label');
+  const btn = document.getElementById('drive-btn');
+  dot.className = 'drive-dot';
+  if (state === 'connected') {
+    dot.classList.add('connected');
+    btn.textContent = 'Disconnect';
+    btn.className = 'btn-drive connected-btn';
+  } else if (state === 'syncing') {
+    dot.classList.add('syncing');
+    btn.textContent = 'Syncing…';
+    btn.className = 'btn-drive';
+  } else if (state === 'error') {
+    dot.classList.add('error');
+    btn.textContent = 'Retry';
+    btn.className = 'btn-drive';
+  } else {
+    btn.textContent = 'Connect Drive';
+    btn.className = 'btn-drive';
+  }
+  lbl.textContent = label;
+}
+
+async function findOrCreateFile() {
+  const listRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D'${FILENAME}'&fields=files(id)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const listData = await listRes.json();
+  if (listData.files && listData.files.length > 0) {
+    driveFileId = listData.files[0].id;
+    localStorage.setItem('drive_file_id', driveFileId);
+    return driveFileId;
+  }
+  // Create new empty file in appDataFolder
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: FILENAME, parents: ['appDataFolder'] })
+  });
+  const createData = await createRes.json();
+  driveFileId = createData.id;
+  localStorage.setItem('drive_file_id', driveFileId);
+  return driveFileId;
+}
+
+async function loadFromDrive() {
+  try {
+    const fileId = await findOrCreateFile();
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (res.status === 200) {
+      const text = await res.text();
+      if (text && text.trim().startsWith('[')) {
+        const driveTasks = JSON.parse(text);
+        const driveIds = new Set(driveTasks.map(t => t.id));
+        const localOnly = tasks.filter(t => !driveIds.has(t.id));
+        tasks = [...driveTasks, ...localOnly];
+        if (localOnly.length > 0) await saveToDrive();
+        localStorage.setItem('tasks_v1', JSON.stringify(tasks));
+        render();
+      }
+    }
+    setDriveStatus('connected', 'Drive synced');
+    showToast({ name: 'Tasks loaded from Google Drive' }, 'DRIVE CONNECTED', false);
+  } catch (e) {
+    setDriveStatus('error', 'Sync failed');
+    showToast({ name: 'Could not reach Google Drive' }, 'SYNC ERROR', true);
+  }
+}
+
+async function saveToDrive() {
+  if (!driveConnected || !accessToken) return;
+  try {
+    setDriveStatus('syncing', 'Saving...');
+    const fileId = driveFileId || await findOrCreateFile();
+    await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+      {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(tasks)
+      }
+    );
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setDriveStatus('connected', `Synced · ${time}`);
+  } catch (e) {
+    setDriveStatus('error', 'Sync failed');
+  }
+}
+
+function scheduleDriveSync() {
+  if (!driveConnected) return;
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(saveToDrive, 1500);
+}
+
+// ── Task logic ────────────────────────────────────────────
+function addTask() {
+  const name = document.getElementById('task-input').value.trim();
+  if (!name) { document.getElementById('task-input').focus(); return; }
+  const deadline = document.getElementById('deadline-input').value;
+  const priority = document.getElementById('priority-input').value;
+  const tag = document.getElementById('tag-input').value.trim();
+  tasks.unshift({ id: Date.now(), name, deadline: deadline || null, priority, tag: tag || null, done: false, created: new Date().toISOString() });
+  save();
+  document.getElementById('task-input').value = '';
+  document.getElementById('deadline-input').value = '';
+  document.getElementById('priority-input').value = 'normal';
+  document.getElementById('tag-input').value = '';
+  render();
+}
+
+function toggleDone(id) {
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; save(); render(); }
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  save(); render();
+}
+
+function getDeadlineStatus(deadline, done) {
+  if (!deadline || done) return null;
+  const diff = (new Date(deadline) - new Date()) / 60000;
+  if (diff < 0) return 'overdue';
+  if (diff < 60) return 'urgent';
+  if (diff < 1440) return 'soon';
+  return 'ok';
+}
+
+function formatDeadline(deadline) {
+  const d = new Date(deadline);
+  const diff = d - new Date();
+  const abs = Math.abs(diff);
+  const mins = Math.floor(abs / 60000);
+  const hours = Math.floor(abs / 3600000);
+  const days = Math.floor(abs / 86400000);
+  if (diff < 0) {
+    if (mins < 60) return `OVERDUE ${mins}m ago`;
+    if (hours < 24) return `OVERDUE ${hours}h ago`;
+    return `OVERDUE ${days}d ago`;
+  }
+  if (mins < 60) return `DUE IN ${mins}m`;
+  if (hours < 24) return `DUE IN ${hours}h`;
+  if (days === 1) return `DUE TOMORROW`;
+  return `DUE ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+}
+
+function setFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function render() {
+  const list = document.getElementById('task-list');
+  let filtered = tasks;
+  if (filter === 'active') filtered = tasks.filter(t => !t.done);
+  else if (filter === 'done') filtered = tasks.filter(t => t.done);
+  else if (filter === 'overdue') filtered = tasks.filter(t => !t.done && getDeadlineStatus(t.deadline, t.done) === 'overdue');
+
+  const total = tasks.length, done = tasks.filter(t => t.done).length;
+  const overdue = tasks.filter(t => !t.done && getDeadlineStatus(t.deadline, t.done) === 'overdue').length;
+  document.getElementById('stats').innerHTML =
+    `<span>${done}</span>/${total} done<br><span style="color:${overdue > 0 ? 'var(--urgent)' : 'var(--muted)'}">${overdue}</span> overdue`;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="big">◎</div>${filter === 'all' ? 'NO TASKS YET' : 'NOTHING HERE'}</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => {
+    const status = getDeadlineStatus(t.deadline, t.done);
+    const barClass = status && !t.done ? ` ${status === 'overdue' ? 'urgentbar' : status + 'bar'}` : '';
+    const deadlineBadge = t.deadline && !t.done
+      ? `<span class="deadline-badge ${status}">${formatDeadline(t.deadline)}</span>` : '';
+    return `
+    <div class="task-item${barClass}${t.done ? ' done' : ''}">
+      <div class="task-check ${t.done ? 'checked' : ''}" onclick="toggleDone(${t.id})"></div>
+      <div class="task-body">
+        <div class="task-name">${escapeHtml(t.name)}</div>
+        <div class="task-meta">
+          ${t.tag ? `<span class="tag">${escapeHtml(t.tag)}</span>` : ''}
+          ${t.priority !== 'normal' ? `<span class="tag" style="color:${t.priority === 'critical' ? 'var(--urgent)' : 'var(--soon)'};border-color:currentColor">${t.priority}</span>` : ''}
+          ${deadlineBadge}
+          <span>${new Date(t.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        </div>
+      </div>
+      <div class="task-actions">
+        <button class="icon-btn del" onclick="deleteTask(${t.id})" title="Delete">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── Export / Import ───────────────────────────────────────
+function exportTasks() {
+  const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `taskmaster-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast({ name: `${tasks.length} tasks exported` }, 'EXPORT COMPLETE', false);
+}
+
+let pendingImport = [];
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (!Array.isArray(imported)) throw new Error();
+      pendingImport = imported;
+      document.getElementById('import-msg').textContent = `Found ${imported.length} tasks. Merge or replace?`;
+      document.getElementById('import-confirm').classList.add('visible');
+    } catch { showToast({ name: 'Invalid JSON file' }, 'IMPORT FAILED', true); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+}
+function confirmImport() {
+  const existing = new Set(tasks.map(t => t.id));
+  tasks = [...pendingImport.filter(t => !existing.has(t.id)), ...tasks];
+  save(); cancelImport(); render();
+  showToast({ name: 'Merged successfully' }, 'MERGE COMPLETE', false);
+}
+function replaceImport() {
+  tasks = pendingImport;
+  save(); cancelImport(); render();
+  showToast({ name: `${tasks.length} tasks loaded` }, 'IMPORT COMPLETE', false);
+}
+function cancelImport() {
+  pendingImport = [];
+  document.getElementById('import-confirm').classList.remove('visible');
+}
+
+// ── Reminders ─────────────────────────────────────────────
+function checkReminders() {
+  const now = new Date();
+  tasks.filter(t => !t.done && t.deadline).forEach(t => {
+    const diff = (new Date(t.deadline) - now) / 60000;
+    [['60', 58, 62, '1 HOUR REMAINING', false],
+     ['15', 13, 17, '15 MINUTES LEFT', true],
+     ['0', -2, 2, 'DEADLINE NOW', true]
+    ].forEach(([key, lo, hi, msg, urgent]) => {
+      const k = `${t.id}-${key}`;
+      if (diff > lo && diff < hi && !notifiedIds.has(k)) {
+        showToast(t, msg, urgent);
+        notifiedIds.add(k);
+      }
+    });
+  });
+  localStorage.setItem('notified_ids', JSON.stringify([...notifiedIds]));
+  render();
+}
+
+function showToast(task, msg, urgent) {
+  const container = document.getElementById('reminders');
+  const toast = document.createElement('div');
+  toast.className = `toast ${urgent ? 'urgent-toast' : ''}`;
+  toast.innerHTML = `<div class="toast-title">⏰ ${msg}</div><div>${escapeHtml(task.name)}</div>`;
+  toast.onclick = () => toast.remove();
+  container.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 8000);
+}
+
+// ── Init ──────────────────────────────────────────────────
+document.getElementById('task-input').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+window.addEventListener('load', () => {
+  const check = setInterval(() => {
+    if (window.google && google.accounts) {
+      clearInterval(check);
+      initDrive();
+    }
+  }, 200);
+});
+
+render();
+setInterval(checkReminders, 30000);
+checkReminders();
+</script>
+</body>
+</html>
